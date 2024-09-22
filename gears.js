@@ -24,16 +24,22 @@ window.onload = () => {
         const cr = evt.target.getBoundingClientRect();
         const cpos = [evt.clientX - cr.left, evt.clientY - cr.top];
         if (draggingGear) {
+            draggingGear.unlinkAxis();
             draggingGear.center = cpos;
+            for (let axis of axes) {
+                if (distance2(axis.center, draggingGear.center) < 20 * 20) {
+                    draggingGear.linkAxis(axis);
+                }
+            }
         }
     });
 
     canvas.addEventListener("mouseup", () => draggingGear = null);
     canvas.addEventListener("mouseleave", () => draggingGear = null);
 
-    const axisA = new Axis([32, 32], true, 0.01);
+    const axisA = new Axis([50, 50], true, 0.01);
     axes.push(axisA);
-    const gearA = new Gear(8, [32, 32], 16, 20, 0);
+    const gearA = new Gear(8, [50, 50], 16, 20, 0);
     gears.push(gearA);
     const dist = gearA.innerRadius + 25;
     const angle = Math.PI / 3.;
@@ -83,7 +89,7 @@ class Gear {
         this.outerRadius = outerRadius;
         this.omega = omega;
         this.phase = phase;
-        this.keyHole = null;
+        this.axis = null;
     }
 
     averageRadius() {
@@ -94,8 +100,26 @@ class Gear {
         this.omega = -otherGear.omega * otherGear.cogs / this.cogs;
     }
 
+    unlinkAxis() {
+        if (this.axis) {
+            this.gear = null;
+            this.axis.unlinkAxis();
+        }
+        this.axis = null;
+    }
+
+    linkAxis(linkedAxis) {
+        this.axis = linkedAxis;
+        linkedAxis.gear = this;
+        linkedAxis.linkAxis();
+    }
+
     tick() {
-        this.phase += this.omega;
+        if (this.axis) {
+            this.center = this.axis.center;
+            this.omega = this.axis.omega;
+            this.phase = this.axis.phase;
+        }
     }
 
     render(ctx) {
@@ -151,6 +175,15 @@ class Axis {
         this.drive = drive;
         this.omega = omega;
         this.phase = phase;
+        // The linked axis, not ideal to have double link here, but no choice for performance.
+        this.gear = null;
+        // If the axis is linked to another and it is a driving axis, this will point to it.
+        this.driver = null;
+    }
+
+    /// Returns whether this axis is driving axis, i.e. puts power into the system.
+    driving() {
+        return this.drive || this.driver;
     }
 
     tick() {
@@ -160,6 +193,40 @@ class Axis {
     render(ctx) {
         const {center, phase} = this;
         renderKeyHole(ctx, center, phase);
+    }
+
+    linkAxis() {
+        if (!this.gear) return;
+        for (let axis of axes) {
+            if (axis === this) continue;
+            if (!axis.gear || axis.gear === this.gear) continue;
+            const dist2 = distance2(axis.center, this.center);
+            const minRadius = axis.gear.innerRadius + this.gear.innerRadius;
+            const maxRadius = axis.gear.outerRadius + this.gear.outerRadius;
+            if (minRadius * minRadius < dist2 && dist2 < maxRadius * maxRadius) {
+                if (this.driving() && !axis.drive) {
+                    axis.omega = -this.omega * this.gear.cogs / axis.gear.cogs;
+                    axis.driver = this;
+                }
+                else if (!this.drive && axis.driving()) {
+                    this.omega = -axis.omega * axis.gear.cogs / this.gear.cogs;
+                    this.driver = axis;
+                }
+            }
+        }
+    }
+
+    unlinkAxis() {
+        if (!this.drive) {
+            this.omega = 0;
+            this.driver = null;
+            for (let axis of axes) {
+                if (axis === this) continue;
+                if (!axis.drive && axis.driver === this) {
+                    axis.unlinkAxis();
+                }
+            }
+        }
     }
 }
 

@@ -60,21 +60,17 @@ class Gear {
         const cuts = this.cogs * 2;
         const {center, innerRadius, outerRadius, phase} = this;
 
-        ctx.beginPath();
-        ctx.ellipse(center[0], center[1], 2, 2, 0, 0, Math.PI * 2, true);
-        ctx.stroke();
+        this.renderPinHole(ctx);
 
         const circleCuts = [...Array(cuts)].map((_, i) => [
             Math.cos(i * Math.PI * 2 / cuts + phase),
             Math.sin(i * Math.PI * 2 / cuts + phase),
         ]);
 
-        const pt0 = circleCuts[0];
         ctx.beginPath();
-        // ctx.moveTo(pt0 * innerRadius + center[0], pt0 * innerRadius + center[1]);
         for (let i = 0; i <= circleCuts.length; i++) {
             const pt = circleCuts[i % circleCuts.length];
-            if (i % 2 == 0) {
+            if (i % 2 === 0) {
                 ctx.lineTo(pt[0] * innerRadius + center[0], pt[1] * innerRadius + center[1]);
                 ctx.lineTo(pt[0] * outerRadius + center[0], pt[1] * outerRadius + center[1]);
             }
@@ -85,4 +81,42 @@ class Gear {
         }
         ctx.stroke();
     }
+
+    renderPinHole(ctx) {
+        const {center, phase} = this;
+        const numPinVertices = 16;
+        const pinVertices = [...Array(numPinVertices)].map((_, i) => [
+            Math.cos(i * Math.PI * 2 / numPinVertices),
+            Math.sin(i * Math.PI * 2 / numPinVertices),
+        ]);
+        const pinInnerRadius = 5;
+        const pinOuterRadius = 9;
+        const rotMat = [
+            Math.cos(phase), -Math.sin(phase),
+            Math.sin(phase), Math.cos(phase),
+        ];
+
+        const pt0 = pinVertices[0];
+        const pt1 = pinVertices[pinVertices.length - 1];
+        ctx.beginPath();
+        const pt1Trans = applyMatrix(rotMat, [pt1[0] * pinInnerRadius, pt1[1] * pinInnerRadius]);
+        ctx.moveTo(pt1Trans[0] + center[0], pt1Trans[1] + center[1]);
+        const ptKey1Trans = applyMatrix(rotMat, [pinOuterRadius, pt1[1] * pinInnerRadius]);
+        ctx.lineTo(ptKey1Trans[0] + center[0], ptKey1Trans[1] + center[1]);
+        const ptKey0Trans = applyMatrix(rotMat, [pinOuterRadius, -pt1[1] * pinInnerRadius]);
+        ctx.lineTo(ptKey0Trans[0] + center[0], ptKey0Trans[1] + center[1]);
+        for (let i = 1; i < pinVertices.length; i++) {
+            const pt = pinVertices[i % pinVertices.length];
+            const ptTrans = applyMatrix(rotMat, [pt[0] * pinInnerRadius, pt[1] * pinInnerRadius]);
+            ctx.lineTo(ptTrans[0] + center[0], ptTrans[1] + center[1]);
+        }
+        ctx.stroke();
+    }
+}
+
+function applyMatrix(mat, vec) {
+    return [
+        mat[0] * vec[0] + mat[1] * vec[1],
+        mat[2] * vec[0] + mat[3] * vec[1],
+    ]
 }

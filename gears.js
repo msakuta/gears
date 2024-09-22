@@ -8,13 +8,16 @@ window.onload = () => {
     const gearB = new Gear(10, [
         gearA.center[0] + Math.cos(angle) * dist,
         gearA.center[1] + Math.sin(angle) * dist],
-        20, 25, -0.007, Math.PI / 32);
+        20, 25, 0, Math.PI / 64);
+    gearB.link(gearA);
     gears.push(gearB);
-    const dist2 = gearB.innerRadius + 30;
+    const dist2 = gearB.innerRadius + 34;
     const angle2 = -Math.PI / 6.;
-    const gearC = new Gear(10, [
+    const gearC = new Gear(14, [
         gearB.center[0] + Math.cos(angle2) * dist2,
-        gearB.center[1] + Math.sin(angle2) * dist2], 26, 30, 0.007);
+        gearB.center[1] + Math.sin(angle2) * dist2],
+        30, 34);
+    gearC.link(gearB);
     gears.push(gearC);
     requestAnimationFrame(animate);
 };
@@ -31,13 +34,21 @@ function animate() {
 }
 
 class Gear {
-    constructor(cogs, center, innerRadius, outerRadius, omega, phase=0) {
+    constructor(cogs, center, innerRadius, outerRadius, omega=0, phase=0) {
         this.cogs = cogs;
         this.center = center;
         this.innerRadius = innerRadius;
         this.outerRadius = outerRadius;
         this.omega = omega;
         this.phase = phase;
+    }
+
+    averageRadius() {
+        return (this.innerRadius + this.outerRadius) / 2;
+    }
+
+    link(otherGear) {
+        this.omega = -otherGear.omega * otherGear.averageRadius() / this.averageRadius();
     }
 
     tick() {

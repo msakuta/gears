@@ -48,7 +48,7 @@ class Gear {
     }
 
     link(otherGear) {
-        this.omega = -otherGear.omega * otherGear.averageRadius() / this.averageRadius();
+        this.omega = -otherGear.omega * otherGear.cogs / this.cogs;
     }
 
     tick() {
